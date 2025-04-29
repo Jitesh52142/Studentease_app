@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - {{ product.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="card-title mb-4">Edit Product</h2>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   value="{{ product.title }}" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" 
+                                      rows="4" required>{{ product.description }}</textarea>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="price" class="form-label">Price ($)</label>
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       step="0.01" min="0" value="{{ "%.2f"|format(product.price) }}" required>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category" name="category" required>
+                                    <option value="Electronics" {% if product.category == 'Electronics' %}selected{% endif %}>Electronics</option>
+                                    <option value="Books" {% if product.category == 'Books' %}selected{% endif %}>Books</option>
+                                    <option value="Furniture" {% if product.category == 'Furniture' %}selected{% endif %}>Furniture</option>
+                                    <option value="Clothing" {% if product.category == 'Clothing' %}selected{% endif %}>Clothing</option>
+                                    <option value="Sports" {% if product.category == 'Sports' %}selected{% endif %}>Sports</option>
+                                    <option value="Other" {% if product.category == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="condition" class="form-label">Condition</label>
+                            <select class="form-select" id="condition" name="condition" required>
+                                <option value="New" {% if product.condition == 'New' %}selected{% endif %}>New</option>
+                                <option value="Like New" {% if product.condition == 'Like New' %}selected{% endif %}>Like New</option>
+                                <option value="Good" {% if product.condition == 'Good' %}selected{% endif %}>Good</option>
+                                <option value="Fair" {% if product.condition == 'Fair' %}selected{% endif %}>Fair</option>
+                                <option value="Poor" {% if product.condition == 'Poor' %}selected{% endif %}>Poor</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="image" class="form-label">Update Product Image</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <div class="form-text">Leave empty to keep the current image</div>
+                            
+                            {% if product.image_file %}
+                            <div class="mt-3">
+                                <p class="mb-2">Current Image:</p>
+                                <img src="{{ url_for('static', filename='product_images/' + product.image_file) }}" 
+                                     alt="Current product image" class="img-thumbnail" style="max-height: 200px;">
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('product', product_id=product.id) }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+.card {
+    border: none;
+    border-radius: 1rem;
+}
+
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.img-thumbnail {
+    border-radius: 0.5rem;
+}
+</style>
+{% endblock %}
+{% endblock %} 

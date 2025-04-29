@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block title %}StudentEase - Home{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="hero-title">Find Everything You Need</h1>
+                <p class="hero-subtitle">Buy and sell items within your campus community</p>
+                {% if not current_user.is_authenticated %}
+                <div class="hero-buttons">
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">Get Started</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">Sign In</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <!-- Search and Filter Section -->
+    <div class="search-section mb-5">
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="d-flex gap-3">
+                    <select class="form-select" name="category" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="books">Books</option>
+                        <option value="furniture">Furniture</option>
+                        <option value="clothing">Clothing</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <select class="form-select" name="sort" id="sortFilter">
+                        <option value="newest">Newest First</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Featured Categories -->
+    <section class="featured-categories mb-5">
+        <h2 class="section-title">Browse Categories</h2>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
+            <div class="col">
+                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='electronics') }}{% else %}{{ url_for('register', next=url_for('home', category='electronics')) }}{% endif %}" class="category-card">
+                    <div class="category-icon">
+                        <i class="bi bi-laptop"></i>
+                    </div>
+                    <h3 class="category-name">Electronics</h3>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='books') }}{% else %}{{ url_for('register', next=url_for('home', category='books')) }}{% endif %}" class="category-card">
+                    <div class="category-icon">
+                        <i class="bi bi-book"></i>
+                    </div>
+                    <h3 class="category-name">Books</h3>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='furniture') }}{% else %}{{ url_for('register', next=url_for('home', category='furniture')) }}{% endif %}" class="category-card">
+                    <div class="category-icon">
+                        <i class="bi bi-house-door"></i>
+                    </div>
+                    <h3 class="category-name">Furniture</h3>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='clothing') }}{% else %}{{ url_for('register', next=url_for('home', category='clothing')) }}{% endif %}" class="category-card">
+                    <div class="category-icon">
+                        <i class="bi bi-bag"></i>
+                    </div>
+                    <h3 class="category-name">Clothing</h3>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Section -->
+    <section class="products-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="section-title mb-0">
+                {% if request.args.get('search') %}
+                Search Results for "{{ request.args.get('search') }}"
+                {% elif request.args.get('category') %}
+                {{ request.args.get('category') }}
+                {% else %}
+                Latest Products
+                {% endif %}
+            </h2>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('new_product') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>List New Product
+            </a>
+            {% endif %}
+        </div>
+
+        {% if products.items %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+            {% for product in products.items %}
+            <div class="col">
+                <div class="product-card">
+                    <div class="product-image-container">
+                        <img src="{{ url_for('static', filename='product_images/' + product.image_file) }}" 
+                             class="card-img-top" alt="{{ product.title }}"
+                             onerror="this.src='{{ url_for('static', filename='product_images/default.jpg') }}'">
+                        {% if product.status == 'sold' %}
+                        <div class="sold-badge">Sold</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.title }}</h5>
+                        <p class="card-text">{{ product.description[:100] }}{% if product.description|length > 100 %}...{% endif %}</p>
+                        <div class="product-meta">
+                            <span class="product-category">
+                                <i class="bi bi-tag me-1"></i>{{ product.category }}
+                            </span>
+                            <span class="product-date" title="{{ product.date_posted.strftime('%Y-%m-%d %H:%M:%S') }}">
+                                <i class="bi bi-clock me-1"></i>{{ product.date_posted|timeago }}
+                            </span>
+                        </div>
+                        <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
+                            <span class="text-success fw-bold">₹{{ product.price }}</span>
+                            <a href="{{ url_for('product', product_id=product.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i>View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if products.pages > 1 %}
+        <nav aria-label="Product pagination" class="mt-5">
+            <ul class="pagination justify-content-center">
+                {% if products.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('home', page=products.prev_num, **request.args) }}">Previous</a>
+                </li>
+                {% endif %}
+
+                {% for page_num in products.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == products.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('home', page=page_num, **request.args) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if products.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('home', page=products.next_num, **request.args) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <p class="lead">No products found</p>
+            {% if request.args.get('search') or request.args.get('category') %}
+            <a href="{{ url_for('home') }}" class="btn btn-primary">Clear Filters</a>
+            {% else %}
+            <p>Be the first to list a product!</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('new_product') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>List New Product
+            </a>
+            {% else %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --primary-color: #4a90e2;
+    --secondary-color: #5c6bc0;
+    --text-dark: #2c3e50;
+    --text-muted: #7f8c8d;
+    --background-light: #f8f9fa;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: white;
+    padding: 4rem 0;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.hero-buttons .btn {
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+}
+
+/* Search Section */
+.search-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
+.search-form .form-control {
+    border-radius: 0.5rem 0 0 0.5rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 0.75rem 1.5rem;
+}
+
+.search-form .btn {
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 0.75rem 1.5rem;
+}
+
+/* Featured Categories */
+.category-card {
+    display: block;
+    text-decoration: none;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.1);
+    height: 100%;
+}
+
+.category-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.category-icon {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.category-name {
+    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+/* Section Titles */
+.section-title {
+    color: var(--text-dark);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+}
+
+/* Product Cards */
+.product-card {
+    background: white;
+    border: none;
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: 100%;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.product-image-container {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background-color: var(--background-light);
+}
+
+.product-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sold-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.card-title {
+    color: var(--text-dark);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.card-text {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.product-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.product-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--background-light);
+    border-radius: 1rem;
+    border: 2px dashed #dee2e6;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #adb5bd;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state .lead {
+    color: var(--text-dark);
+    margin-bottom: 1.5rem;
+}
+
+/* Pagination */
+.pagination {
+    gap: 0.5rem;
+}
+
+.page-link {
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.page-item.disabled .page-link {
+    background-color: var(--background-light);
+    color: var(--text-muted);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 3rem 0;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+    }
+
+    .search-section .row {
+        text-align: center;
+    }
+
+    .search-form {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const sortFilter = document.getElementById('sortFilter');
+    
+    function updateFilters() {
+        const searchParams = new URLSearchParams(window.location.search);
+        if (categoryFilter.value) searchParams.set('category', categoryFilter.value);
+        else searchParams.delete('category');
+        if (sortFilter.value) searchParams.set('sort', sortFilter.value);
+        else searchParams.delete('sort');
+        {% if current_user.is_authenticated %}
+        window.location.search = searchParams.toString();
+        {% else %}
+        window.location.href = "{{ url_for('register', next=url_for('home')) }}?" + searchParams.toString();
+        {% endif %}
+    }
+    
+    categoryFilter.addEventListener('change', updateFilters);
+    sortFilter.addEventListener('change', updateFilters);
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Payment QR Management{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Admin Navigation -->
+    <div class="admin-nav mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-qr-code me-2"></i>Payment QR Management</h2>
+            <div>
+                <a href="{{ url_for('home') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-house me-1"></i>Back to Site
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">
+                    <i class="bi bi-box-arrow-right me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+        <div class="admin-tabs mt-3">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">Dashboard</a>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary">Users</a>
+            <a href="{{ url_for('admin_products') }}" class="btn btn-outline-primary">Products</a>
+            <a href="{{ url_for('admin_payment_qr') }}" class="btn btn-primary active">Payment QR</a>
+            <a href="{{ url_for('admin_payment_details') }}" class="btn btn-outline-primary">Payment Details</a>
+        </div>
+    </div>
+
+    <!-- QR Code Management -->
+    <div class="row">
+        <!-- QR Code Upload Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Upload Payment QR Code</h5>
+                    <form action="{{ url_for('admin_payment_qr') }}" method="post" enctype="multipart/form-data">
+                        {% if payment_qr and payment_qr.qr_code %}
+                        <div class="mb-3">
+                            <label class="form-label">Current QR Code:</label>
+                            <div class="text-center">
+                                <img src="{{ url_for('static', filename='qr_codes/' + payment_qr.qr_code) }}" 
+                                     alt="Payment QR Code" 
+                                     class="img-fluid mb-2" 
+                                     style="max-width: 200px;">
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <label for="qr_code" class="form-label">Upload New QR Code</label>
+                            <input type="file" class="form-control" id="qr_code" name="qr_code" accept="image/*" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="instructions" class="form-label">Payment Instructions</label>
+                            <textarea class="form-control" id="instructions" name="instructions" rows="4" required>{{ payment_qr.instructions if payment_qr else '' }}</textarea>
+                            <div class="form-text">Provide clear instructions for users on how to make the payment.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload me-1"></i>Update QR Code
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Verification Section -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Pending Payments</h5>
+                    {% if pending_orders %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Buyer</th>
+                                    <th>Product</th>
+                                    <th>Payment Proof</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in pending_orders %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.buyer.username }}</td>
+                                    <td>{{ order.product.title }}</td>
+                                    <td>
+                                        {% if order.payment_proof %}
+                                        <a href="#" 
+                                           data-bs-toggle="modal" 
+                                           data-bs-target="#paymentProofModal"
+                                           data-img-src="{{ url_for('static', filename='payment_proofs/' + order.payment_proof) }}"
+                                           data-order-id="{{ order.id }}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-image me-1"></i>View Proof
+                                        </a>
+                                        {% elif order.payment_screenshot %}
+                                        <a href="#" 
+                                           data-bs-toggle="modal" 
+                                           data-bs-target="#paymentProofModal"
+                                           data-img-src="{{ url_for('static', filename='payment_screenshots/' + order.payment_screenshot) }}"
+                                           data-order-id="{{ order.id }}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-image me-1"></i>View Proof
+                                        </a>
+                                        {% else %}
+                                        <span class="badge bg-warning">No proof</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if order.payment_status == 'pending' %}
+                                            <form action="{{ url_for('verify_payment', order_id=order.id, action='approve') }}" 
+                                                  method="POST" 
+                                                  class="d-inline">
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-success"
+                                                        onclick="return confirm('Are you sure you want to approve this payment?')">
+                                                    <i class="bi bi-check-lg"></i> Approve
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('verify_payment', order_id=order.id, action='reject') }}" 
+                                                  method="POST"
+                                                  class="d-inline">
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-danger"
+                                                        onclick="return confirm('Are you sure you want to reject this payment?')">
+                                                    <i class="bi bi-x-lg"></i> Reject
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No pending payments to verify.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Recent Payments</h5>
+                    {% if completed_orders %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Buyer</th>
+                                    <th>Product</th>
+                                    <th>Status</th>
+                                    <th>Payment Proof</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in completed_orders %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.buyer.username }}</td>
+                                    <td>{{ order.product.title }}</td>
+                                    <td>
+                                        <span class="badge {% if order.payment_status == 'completed' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ order.payment_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if order.payment_proof %}
+                                        <a href="#" 
+                                           data-bs-toggle="modal" 
+                                           data-bs-target="#paymentProofModal"
+                                           data-img-src="{{ url_for('static', filename='payment_proofs/' + order.payment_proof) }}"
+                                           data-order-id="{{ order.id }}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-image me-1"></i>View Proof
+                                        </a>
+                                        {% elif order.payment_screenshot %}
+                                        <a href="#" 
+                                           data-bs-toggle="modal" 
+                                           data-bs-target="#paymentProofModal"
+                                           data-img-src="{{ url_for('static', filename='payment_screenshots/' + order.payment_screenshot) }}"
+                                           data-order-id="{{ order.id }}"
+                                           class="btn btn-sm btn-info">
+                                            <i class="bi bi-image me-1"></i>View Proof
+                                        </a>
+                                        {% else %}
+                                        <span class="badge bg-warning">No proof</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No payment history available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Proof Modal -->
+<div class="modal fade" id="paymentProofModal" tabindex="-1" aria-labelledby="paymentProofModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentProofModalLabel">Payment Proof - Order #<span id="modalOrderId"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" class="img-fluid" id="paymentProofImage" alt="Payment Proof">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Payment proof modal
+    const paymentProofModal = document.getElementById('paymentProofModal');
+    if (paymentProofModal) {
+        paymentProofModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const imgSrc = button.getAttribute('data-img-src');
+            const orderId = button.getAttribute('data-order-id');
+            const modalImage = document.getElementById('paymentProofImage');
+            const modalOrderId = document.getElementById('modalOrderId');
+            modalImage.src = imgSrc;
+            modalOrderId.textContent = orderId;
+        });
+    }
+});
+</script>
+
+<style>
+.admin-nav {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+}
+
+.admin-tabs {
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+.admin-tabs .btn {
+    margin-right: 0.5rem;
+}
+
+.table img {
+    max-width: 50px;
+    height: auto;
+}
+
+#paymentProofModal .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#paymentProofImage {
+    max-height: 70vh;
+    object-fit: contain;
+}
+
+.btn-group {
+    gap: 0.25rem;
+}
+
+form.d-inline {
+    display: inline-block;
+    margin-right: 0.25rem;
+}
+</style>
+{% endblock %} 

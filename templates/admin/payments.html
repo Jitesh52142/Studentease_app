@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Payment Verification</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Product</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Payment Screenshot</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ order.user.username }}</td>
+                    <td>{{ order.product.name }}</td>
+                    <td>${{ "%.2f"|format(order.product.price) }}</td>
+                    <td>
+                        <span class="badge {% if order.status == 'completed' %}bg-success{% elif order.status == 'processing' %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if order.payment_screenshot %}
+                            <a href="{{ url_for('static', filename='payment_screenshots/' + order.payment_screenshot) }}" target="_blank">
+                                <img src="{{ url_for('static', filename='payment_screenshots/' + order.payment_screenshot) }}" 
+                                     alt="Payment Screenshot" class="img-thumbnail" style="max-width: 100px;">
+                            </a>
+                        {% else %}
+                            No screenshot uploaded
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if order.status == 'processing' %}
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('verify_payment', order_id=order.id, action='approve') }}" 
+                                   class="btn btn-success btn-sm" 
+                                   onclick="return confirm('Are you sure you want to approve this payment?')">
+                                    Approve
+                                </a>
+                                <a href="{{ url_for('verify_payment', order_id=order.id, action='reject') }}" 
+                                   class="btn btn-danger btn-sm"
+                                   onclick="return confirm('Are you sure you want to reject this payment?')">
+                                    Reject
+                                </a>
+                            </div>
+                        {% else %}
+                            {% if order.status == 'completed' %}
+                                <span class="text-success">Approved</span>
+                            {% else %}
+                                <span class="text-danger">Rejected</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 
