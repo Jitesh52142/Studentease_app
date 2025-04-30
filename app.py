@@ -115,7 +115,9 @@ class Order(db.Model):
     payment_method = db.Column(db.String(20), nullable=True)
     payment_proof = db.Column(db.String(100), nullable=True)
     purchased_image = db.Column(db.String(100))
-    
+  
+
+
     # Add relationships
     buyer = db.relationship('User', foreign_keys=[buyer_id], backref='purchases')
     product = db.relationship('Product', backref='orders')
