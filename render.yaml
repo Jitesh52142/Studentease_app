@@ -7,6 +7,7 @@ services:
     region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: python init_db.py && gunicorn --config gunicorn.conf.py app:app
+    preDeployCommand: cp -r static/* /opt/render/project/src/static/ || true
     disk:
       name: app-data
       mountPath: /opt/render/project/src

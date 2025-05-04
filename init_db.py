@@ -4,7 +4,8 @@ from sqlalchemy import inspect
 
 with app.app_context():
     inspector = db.inspect(db.engine)
-    if not inspector.has_table('order'):
+    # Check if database has tables (e.g., 'product')
+    if not inspector.has_table('product'):
         db.create_all()
         # Create default admin user if no users exist
         if not User.query.first():
@@ -13,11 +14,11 @@ with app.app_context():
                 email='jiteshbawaskar05@gmail.com',
                 is_admin=True
             )
-            admin.set_password('Admin@123')
+            admin.set_password('Jitesh001@')
             db.session.add(admin)
             db.session.commit()
     else:
-        # Add missing columns if table exists
+        # Ensure 'order' table has required columns
         existing_columns = [c['name'] for c in inspector.get_columns('order')]
         with db.engine.begin() as conn:
             if 'payment_method' not in existing_columns:

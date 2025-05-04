@@ -19,11 +19,10 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
-# Use Render's persistent disk for SQLite; fallback to local for development
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///marketplace.db')
 app.config['UPLOAD_FOLDER'] = 'static'
 app.config['AVATARS_FOLDER'] = 'static/avatars'
-app.config['PRODUCTS_FOLDER'] = 'static/product_pics'  # Updated to match project structure
+app.config['PRODUCTS_FOLDER'] = 'static/product_pics'
 app.config['PURCHASED_PRODUCTS_FOLDER'] = 'static/purchased_products'
 app.config['QR_CODES_FOLDER'] = 'static/qr_codes'
 app.config['PAYMENT_PROOFS_FOLDER'] = 'static/payment_proofs'
@@ -117,19 +116,16 @@ class Order(db.Model):
     payment_proof = db.Column(db.String(100), nullable=True)
     purchased_image = db.Column(db.String(100))
 
-    # Add relationships
     buyer = db.relationship('User', foreign_keys=[buyer_id], backref='purchases')
     product = db.relationship('Product', backref='orders')
 
     def __init__(self, **kwargs):
-        # Set default values for new columns
         if 'payment_method' not in kwargs:
             kwargs['payment_method'] = 'qr'
         super(Order, self).__init__(**kwargs)
 
     @property
     def payment_display(self):
-        """Helper property to get payment proof or screenshot"""
         return self.payment_proof or self.payment_screenshot
 
     def __repr__(self):
@@ -161,10 +157,8 @@ def home():
     category = request.args.get('category', '')
     filter_type = request.args.get('filter', '')
 
-    # Base query
     query = Product.query
 
-    # Apply search filter
     if search:
         query = query.filter(
             db.or_(
@@ -173,11 +167,9 @@ def home():
             )
         )
 
-    # Apply category filter
     if category:
         query = query.filter(Product.category == category)
 
-    # Apply user-specific filters
     if filter_type and current_user.is_authenticated:
         if filter_type == 'my_products':
             query = query.filter(Product.user_id == current_user.id)
@@ -189,21 +181,15 @@ def home():
                 Order.status == 'completed'
             )
 
-    # Apply default status filter unless viewing own products
     if not (filter_type == 'my_products' and current_user.is_authenticated):
         query = query.filter(Product.status == 'available')
 
-    # Order by most recent
     query = query.order_by(Product.date_posted.desc())
-
-    # Paginate results
     products = query.paginate(page=page, per_page=12)
 
-    # Remove 'page' from args to avoid conflict in template
     args = request.args.to_dict()
     args.pop('page', None)
 
-    # Pass the args without 'page' and the products to the template
     return render_template('home.html', products=products, request_args=args)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -219,27 +205,22 @@ def register():
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
-        # Check if username is valid
         if not re.match("^[a-zA-Z0-9_.-]+$", username):
             flash('Username can only contain letters, numbers, dots, and underscores', 'danger')
             return redirect(url_for('register'))
 
-        # Check if username length is valid
         if len(username) < 3 or len(username) > 20:
             flash('Username must be between 3 and 20 characters long', 'danger')
             return redirect(url_for('register'))
 
-        # Check if email is valid
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash('Please enter a valid email address', 'danger')
             return redirect(url_for('register'))
 
-        # Check if phone number is valid
         if not re.match(r'^\+?1?\d{9,15}$', phone):
             flash('Please enter a valid phone number', 'danger')
             return redirect(url_for('register'))
 
-        # Validate password strength
         if len(password) < 8:
             flash('Password must be at least 8 characters long', 'danger')
             return redirect(url_for('register'))
@@ -253,48 +234,38 @@ def register():
             flash('Password must contain at least one number', 'danger')
             return redirect(url_for('register'))
 
-        # Check if passwords match
         if password != confirm_password:
             flash('Passwords do not match', 'danger')
             return redirect(url_for('register'))
 
-        # Check if username already exists
         if User.query.filter_by(username=username).first():
             flash('This username is already taken. Please choose a different one.', 'danger')
             return redirect(url_for('register'))
 
-        # Check if email already exists
         if User.query.filter_by(email=email).first():
             flash('An account with this email already exists. Please use a different email or try logging in.', 'danger')
             return redirect(url_for('register'))
 
-        # Check if phone already exists
         if User.query.filter_by(phone=phone).first():
             flash('An account with this phone number already exists. Please use a different number.', 'danger')
             return redirect(url_for('register'))
 
         try:
-            # Check if this is the first user (will be admin)
             is_first_user = User.query.first() is None
-
-            # Create new user
             user = User(
                 username=username,
                 email=email,
                 phone=phone,
-                is_admin=is_first_user  # Make the first user an admin
+                is_admin=is_first_user
             )
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
 
-            # Send welcome email
             try:
                 send_welcome_email(user)
             except Exception as e:
                 print(f"Failed to send welcome email: {str(e)}")
-                # Don't stop registration if email fails
-                pass
 
             if is_first_user:
                 flash('Your admin account has been created successfully! You can now log in.', 'success')
@@ -318,7 +289,6 @@ def login():
         email = request.form['email']
         password = request.form['password']
         
-        # Debug print
         print(f"Login attempt for email: {email}")
         
         user = User.query.filter_by(email=email).first()
@@ -335,7 +305,6 @@ def login():
             flash('Incorrect password. Please try again.', 'danger')
             return redirect(url_for('login'))
         
-        # If we get here, credentials are correct
         login_user(user, remember=request.form.get('remember', False))
         user.last_seen = datetime.now(UTC)
         try:
@@ -400,7 +369,6 @@ def reset_password(token):
 @app.route('/delete-account', methods=['POST'])
 @login_required
 def delete_account():
-    # Delete user's products
     for product in current_user.products:
         if product.image_file != 'default.jpg':
             try:
@@ -414,20 +382,17 @@ def delete_account():
                 pass
         db.session.delete(product)
 
-    # Delete user's avatar if not default
     if current_user.avatar != 'default.jpg':
         try:
             os.remove(os.path.join(app.config['AVATARS_FOLDER'], current_user.avatar))
         except:
             pass
 
-    # Delete user
     db.session.delete(current_user)
     db.session.commit()
     flash('Your account has been deleted successfully.', 'info')
     return redirect(url_for('home'))
 
-# Utility functions
 def send_email(to, subject, body):
     try:
         msg = Message(
@@ -488,8 +453,20 @@ def new_product():
             return redirect(request.url)
         
         if image:
+            # Validate file extension
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+            if '.' not in image.filename or image.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+                flash('Invalid file type. Only PNG, JPG, JPEG, and GIF are allowed.', 'danger')
+                return redirect(request.url)
+            
             filename = secure_filename(f"product_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{image.filename}")
-            image.save(os.path.join(app.config['PRODUCTS_FOLDER'], filename))
+            image_path = os.path.join(app.config['PRODUCTS_FOLDER'], filename)
+            try:
+                image.save(image_path)
+            except Exception as e:
+                print(f"Error saving image: {str(e)}")
+                flash('Error saving image. Please try again.', 'danger')
+                return redirect(request.url)
             
             product = Product(
                 title=request.form['title'],
@@ -500,10 +477,16 @@ def new_product():
                 image_file=filename,
                 seller=current_user
             )
-            db.session.add(product)
-            db.session.commit()
-            flash('Your product has been listed!', 'success')
-            return redirect(url_for('home'))
+            try:
+                db.session.add(product)
+                db.session.commit()
+                flash('Your product has been listed!', 'success')
+                return redirect(url_for('home'))
+            except Exception as e:
+                print(f"Error saving product: {str(e)}")
+                db.session.rollback()
+                flash('Error listing product. Please try again.', 'danger')
+                return redirect(request.url)
     
     return render_template('create_product.html')
 
@@ -555,7 +538,7 @@ def process_payment(product_id):
     
     try:
         charge = stripe.Charge.create(
-            amount=int(product.price * 100),  # Amount in cents
+            amount=int(product.price * 100),
             currency='usd',
             source=token,
             description=f'Purchase of {product.title}'
@@ -582,7 +565,6 @@ def process_payment(product_id):
     
     return redirect(url_for('product', product_id=product_id))
 
-# Admin routes
 @app.route('/admin')
 @login_required
 @admin_required
@@ -624,7 +606,6 @@ def admin_orders():
 def toggle_admin(user_id):
     user = User.query.get_or_404(user_id)
     
-    # Prevent changing admin status for the main admin account
     if user.email == 'jiteshbawaskar05@gmail.com':
         flash('Cannot modify admin status for the main administrator account.', 'danger')
         return redirect(url_for('admin_users'))
@@ -641,14 +622,13 @@ def profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     products = Product.query.filter_by(seller=user).all()
     
-    # Only show completed/processing orders, exclude cancelled and rejected ones
     purchases = Order.query.filter_by(buyer=user)\
         .filter(Order.status.in_(['completed', 'processing']))\
         .filter(Order.payment_status.in_(['completed', 'processing']))\
         .order_by(Order.date_ordered.desc())\
         .all()
     
-    payment_qr = PaymentQR.query.first()  # Get the payment QR code
+    payment_qr = PaymentQR.query.first()
     return render_template('profile.html', 
                          user=user, 
                          products=products, 
@@ -660,7 +640,6 @@ def profile(username):
 def settings():
     if request.method == 'POST':
         if 'password' in request.form:
-            # Handle password change
             if bcrypt.check_password_hash(current_user.password, request.form['current_password']):
                 hashed_password = bcrypt.generate_password_hash(request.form['new_password']).decode('utf-8')
                 current_user.password = hashed_password
@@ -669,7 +648,6 @@ def settings():
             else:
                 flash('Current password is incorrect!', 'danger')
         else:
-            # Handle profile updates
             current_user.username = request.form['username']
             current_user.email = request.form['email']
             db.session.commit()
@@ -684,24 +662,20 @@ def settings():
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
     
-    # Check if the user owns the product or is an admin
     if product.user_id != current_user.id and not current_user.is_admin:
         flash('You do not have permission to delete this product.', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
-    # Check if the product has any orders
     orders = Order.query.filter_by(product_id=product_id).first()
     if orders:
         flash('Cannot delete product as it has associated orders.', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
-    # Check if the product status is available
     if product.status != 'available':
         flash('Cannot delete product as it is currently involved in a transaction.', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
     try:
-        # Delete associated files
         if product.image_file != 'default.jpg':
             image_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
             if os.path.exists(image_path):
@@ -712,7 +686,6 @@ def delete_product(product_id):
             if os.path.exists(qr_path):
                 os.remove(qr_path)
         
-        # Delete the product
         db.session.delete(product)
         db.session.commit()
         flash('Your product has been deleted successfully!', 'success')
@@ -761,36 +734,28 @@ def create_checkout_session(product_id):
 def order_success(product_id):
     product = Product.query.get_or_404(product_id)
     
-    # Create order record
     order = Order(
         buyer_id=current_user.id,
         product_id=product_id,
         status='completed'
     )
     
-    # Add order to session first to get the ID
     db.session.add(order)
     db.session.flush()
     
-    # Copy product image to purchased products folder
     if product.image_file and product.image_file != 'default.jpg':
         source_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
         if os.path.exists(source_path):
-            # Create a new filename for the purchased product image with proper order ID
             purchased_filename = f"purchased_{order.id}_{product.image_file}"
             dest_path = os.path.join(app.config['PURCHASED_PRODUCTS_FOLDER'], purchased_filename)
             try:
                 import shutil
                 shutil.copy2(source_path, dest_path)
-                # Update the order with the new image path
                 order.payment_proof = purchased_filename
             except Exception as e:
                 print(f"Error copying product image: {e}")
     
-    # Update product status
     product.status = 'sold'
-    
-    # Commit all changes
     db.session.commit()
     
     flash('Thank you for your purchase!', 'success')
@@ -805,7 +770,7 @@ def update_product_image(product_id):
     if product.user_id != current_user.id and not current_user.is_admin:
         abort(403)
     
-    if 'image' in request.files:
+    if 'image' not in request.files:
         flash('No image file uploaded', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
@@ -815,7 +780,6 @@ def update_product_image(product_id):
         return redirect(url_for('product', product_id=product_id))
     
     if image:
-        # Delete old image if it's not the default
         if product.image_file != 'default.jpg':
             try:
                 old_image_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
@@ -824,7 +788,6 @@ def update_product_image(product_id):
             except Exception as e:
                 print(f"Error deleting old image: {e}")
         
-        # Save new image
         filename = secure_filename(f"product_{product_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{image.filename}")
         image.save(os.path.join(app.config['PRODUCTS_FOLDER'], filename))
         product.image_file = filename
@@ -846,7 +809,6 @@ def update_avatar():
         return redirect(url_for('profile', username=current_user.username))
     
     if avatar:
-        # Delete old avatar if it's not the default
         if current_user.avatar != 'default.jpg':
             try:
                 old_avatar_path = os.path.join(app.config['AVATARS_FOLDER'], current_user.avatar)
@@ -855,7 +817,6 @@ def update_avatar():
             except Exception as e:
                 print(f"Error deleting old avatar: {e}")
         
-        # Save new avatar
         filename = secure_filename(f"avatar_{current_user.id}_{avatar.filename}")
         avatar.save(os.path.join(app.config['AVATARS_FOLDER'], filename))
         current_user.avatar = filename
@@ -887,7 +848,6 @@ def admin_payment_qr():
             return redirect(url_for('admin_payment_qr'))
         
         if qr_code:
-            # Delete old QR code if it exists
             if payment_qr and payment_qr.qr_code:
                 try:
                     old_qr_path = os.path.join(app.config['QR_CODES_FOLDER'], payment_qr.qr_code)
@@ -896,11 +856,9 @@ def admin_payment_qr():
                 except Exception as e:
                     print(f"Error deleting old QR code: {e}")
             
-            # Save new QR code
             filename = secure_filename(f"payment_qr_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{qr_code.filename}")
             qr_code.save(os.path.join(app.config['QR_CODES_FOLDER'], filename))
             
-            # Create or update PaymentQR record
             if not payment_qr:
                 payment_qr = PaymentQR(
                     qr_code=filename,
@@ -931,7 +889,7 @@ def admin_payment_qr():
 def admin_payments():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('home'))  # Fixed from 'index'
+        return redirect(url_for('home'))
     
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     return render_template('admin/payment_details.html', orders=orders)
@@ -941,7 +899,7 @@ def admin_payments():
 def verify_payment(order_id, action):
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('home'))  # Fixed from 'index'
+        return redirect(url_for('home'))
     
     order = Order.query.get_or_404(order_id)
     product = order.product
@@ -950,9 +908,8 @@ def verify_payment(order_id, action):
         if action == 'approve':
             order.payment_status = 'completed'
             order.status = 'processing'
-            product.status = 'sold'  # Mark product as sold when payment is approved
+            product.status = 'sold'
             
-            # Send email to buyer
             try:
                 msg = Message('Payment Approved',
                               sender=app.config['MAIL_USERNAME'],
@@ -969,7 +926,6 @@ Your order will be processed shortly. Thank you for your purchase!
             except Exception as e:
                 print(f"Error sending buyer email: {str(e)}")
 
-            # Send email to seller
             try:
                 msg = Message('New Order Notification',
                               sender=app.config['MAIL_USERNAME'],
@@ -992,9 +948,8 @@ Please process this order as soon as possible.
         elif action == 'reject':
             order.payment_status = 'rejected'
             order.status = 'cancelled'
-            product.status = 'available'  # Make product available again
+            product.status = 'available'
             
-            # Send email to buyer
             try:
                 msg = Message('Payment Rejected',
                               sender=app.config['MAIL_USERNAME'],
@@ -1037,17 +992,13 @@ def submit_payment(product_id):
     
     if screenshot:
         try:
-            # Save payment proof
             filename = secure_filename(f"payment_proof_{product_id}_{current_user.id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{screenshot.filename}")
             proof_path = os.path.join(app.config['PAYMENT_PROOFS_FOLDER'], filename)
             
-            # Ensure directory exists
             os.makedirs(os.path.dirname(proof_path), exist_ok=True)
             
-            # Save the file
             screenshot.save(proof_path)
             
-            # Create order
             order = Order(
                 buyer_id=current_user.id,
                 product_id=product_id,
@@ -1057,15 +1008,12 @@ def submit_payment(product_id):
                 payment_proof=filename
             )
             
-            # Mark product as pending
             product.status = 'pending'
             
             db.session.add(order)
             db.session.commit()
 
-            # Send notification emails
             try:
-                # Notify admin
                 admin_subject = 'New Payment Verification Required'
                 admin_body = f"""
 New payment proof submitted:
@@ -1080,7 +1028,6 @@ Please verify the payment in the admin dashboard.
 """
                 send_email('jiteshbawaskar05@gmail.com', admin_subject, admin_body)
 
-                # Notify buyer
                 buyer_subject = 'Payment Proof Submitted'
                 buyer_body = f"""
 Dear {current_user.username},
@@ -1117,13 +1064,11 @@ Thank you for your purchase!
 def place_cod_order(product_id):
     product = Product.query.get_or_404(product_id)
     
-    # Check if product is available
     if product.status != 'available':
         flash('This product is no longer available.', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
     try:
-        # Create order with COD payment method
         order = Order(
             buyer_id=current_user.id,
             product_id=product_id,
@@ -1132,15 +1077,12 @@ def place_cod_order(product_id):
             payment_status='pending'
         )
         
-        # Mark product as pending
         product.status = 'pending'
         
         db.session.add(order)
         db.session.commit()
         
-        # Send notification emails
         try:
-            # Notify seller
             seller_subject = 'New Cash on Delivery Order'
             seller_body = f"""
 A new Cash on Delivery order has been placed:
@@ -1154,7 +1096,6 @@ The buyer will pay upon delivery.
 """
             send_email(product.seller.email, seller_subject, seller_body)
 
-            # Notify buyer
             buyer_subject = 'Order Confirmation - Cash on Delivery'
             buyer_body = f"""
 Dear {current_user.username},
@@ -1201,7 +1142,6 @@ def edit_product(product_id):
         if 'image' in request.files:
             image = request.files['image']
             if image.filename:
-                # Delete old image if it's not the default
                 if product.image_file != 'default.jpg':
                     try:
                         old_image_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
@@ -1210,7 +1150,6 @@ def edit_product(product_id):
                     except Exception as e:
                         print(f"Error deleting old image: {e}")
                 
-                # Save new image
                 filename = secure_filename(f"product_{product_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{image.filename}")
                 image.save(os.path.join(app.config['PRODUCTS_FOLDER'], filename))
                 product.image_file = filename
@@ -1225,12 +1164,9 @@ def edit_product(product_id):
     
     return render_template('edit_product.html', product=product)
 
-# Custom template filters
 @app.template_filter('timeago')
 def timeago_filter(date):
-    """Convert a datetime into a human readable time-ago string."""
     if not date.tzinfo:
-        # If the date is naive, assume it's in UTC
         date = date.replace(tzinfo=UTC)
     
     now = datetime.now(UTC)
@@ -1263,11 +1199,9 @@ def admin_payment_details():
 
 if __name__ == '__main__':
     with app.app_context():
-        # Create tables if they don't exist
         inspector = db.inspect(db.engine)
         if not inspector.has_table('order'):
             db.create_all()
-            # Create default admin user if no users exist
             if not User.query.first():
                 admin = User(
                     username='admin',
@@ -1278,7 +1212,6 @@ if __name__ == '__main__':
                 db.session.add(admin)
                 db.session.commit()
         else:
-            # Add missing columns if table exists
             existing_columns = [c['name'] for c in inspector.get_columns('order')]
             with db.engine.begin() as conn:
                 if 'payment_method' not in existing_columns:
@@ -1286,10 +1219,9 @@ if __name__ == '__main__':
                 if 'payment_proof' not in existing_columns:
                     conn.execute(db.text('ALTER TABLE "order" ADD COLUMN payment_proof VARCHAR(100)'))
     
-    # Enable debug mode and auto-reloader
     app.run(
         debug=True,
         use_reloader=True,
-        host='0.0.0.0',  # Makes the server externally visible
+        host='0.0.0.0',
         port=5000
     )

@@ -51,6 +51,6 @@ static/qr_codes/*
 !static/product_images/.gitkeep
 !static/purchased_products/.gitkeep
 !static/qr_codes/.gitkeep
-
+pycache/ *.pyc .env marketplace.db *.sqlite3
 # Logs
 *.log 
