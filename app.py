@@ -19,10 +19,11 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///marketplace.db'
+# Use Render's persistent disk for SQLite; fallback to local for development
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///marketplace.db')
 app.config['UPLOAD_FOLDER'] = 'static'
 app.config['AVATARS_FOLDER'] = 'static/avatars'
-app.config['PRODUCTS_FOLDER'] = 'static/product_images'
+app.config['PRODUCTS_FOLDER'] = 'static/product_pics'  # Updated to match project structure
 app.config['PURCHASED_PRODUCTS_FOLDER'] = 'static/purchased_products'
 app.config['QR_CODES_FOLDER'] = 'static/qr_codes'
 app.config['PAYMENT_PROOFS_FOLDER'] = 'static/payment_proofs'
@@ -34,9 +35,9 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY', 'your_stripe_secret_key')
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'your-email@gmail.com')
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'your-email@gmail.com')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', 'your-app-password')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'your-email@gmail.com')
 mail = Mail(app)
 
 # Create necessary directories if they don't exist
@@ -115,8 +116,6 @@ class Order(db.Model):
     payment_method = db.Column(db.String(20), nullable=True)
     payment_proof = db.Column(db.String(100), nullable=True)
     purchased_image = db.Column(db.String(100))
-  
-
 
     # Add relationships
     buyer = db.relationship('User', foreign_keys=[buyer_id], backref='purchases')
@@ -206,8 +205,6 @@ def home():
 
     # Pass the args without 'page' and the products to the template
     return render_template('home.html', products=products, request_args=args)
-
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -465,7 +462,7 @@ The StudentEase Team
 def send_reset_email(user, token):
     subject = 'Password Reset Request'
     body = f'''To reset your password, visit the following link:
-{url_for('reset_token', token=token, _external=True)}
+{url_for('reset_password', token=token, _external=True)}
 
 If you did not make this request then simply ignore this email and no changes will be made.
 '''
@@ -524,7 +521,7 @@ def product(product_id):
 def upload_qr_code(product_id):
     product = Product.query.get_or_404(product_id)
     
-    if current_user.id != product.seller_id and not current_user.is_admin:
+    if current_user.id != product.seller.id and not current_user.is_admin:
         abort(403)
     
     if 'qr_code' not in request.files:
@@ -734,7 +731,7 @@ def create_checkout_session(product_id):
     if product.status != 'available':
         return jsonify({'error': 'This product is no longer available'}), 400
     
-    if product.seller_id == current_user.id:
+    if product.seller.id == current_user.id:
         return jsonify({'error': 'You cannot buy your own product'}), 400
 
     try:
@@ -808,7 +805,7 @@ def update_product_image(product_id):
     if product.user_id != current_user.id and not current_user.is_admin:
         abort(403)
     
-    if 'image' not in request.files:
+    if 'image' in request.files:
         flash('No image file uploaded', 'danger')
         return redirect(url_for('product', product_id=product_id))
     
@@ -934,7 +931,7 @@ def admin_payment_qr():
 def admin_payments():
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))  # Fixed from 'index'
     
     orders = Order.query.order_by(Order.date_ordered.desc()).all()
     return render_template('admin/payment_details.html', orders=orders)
@@ -944,7 +941,7 @@ def admin_payments():
 def verify_payment(order_id, action):
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))  # Fixed from 'index'
     
     order = Order.query.get_or_404(order_id)
     product = order.product
@@ -958,8 +955,8 @@ def verify_payment(order_id, action):
             # Send email to buyer
             try:
                 msg = Message('Payment Approved',
-                         sender=app.config['MAIL_USERNAME'],
-                         recipients=[order.buyer.email])
+                              sender=app.config['MAIL_USERNAME'],
+                              recipients=[order.buyer.email])
                 msg.body = f'''Your payment for order #{order.id} has been approved.
             
 Product: {order.product.title}
@@ -975,8 +972,8 @@ Your order will be processed shortly. Thank you for your purchase!
             # Send email to seller
             try:
                 msg = Message('New Order Notification',
-                         sender=app.config['MAIL_USERNAME'],
-                         recipients=[order.product.seller.email])
+                              sender=app.config['MAIL_USERNAME'],
+                              recipients=[order.product.seller.email])
                 msg.body = f'''You have a new order to process!
             
 Order ID: #{order.id}
@@ -1000,8 +997,8 @@ Please process this order as soon as possible.
             # Send email to buyer
             try:
                 msg = Message('Payment Rejected',
-                         sender=app.config['MAIL_USERNAME'],
-                         recipients=[order.buyer.email])
+                              sender=app.config['MAIL_USERNAME'],
+                              recipients=[order.buyer.email])
                 msg.body = f'''Your payment for order #{order.id} has been rejected.
             
 Product: {order.product.title}

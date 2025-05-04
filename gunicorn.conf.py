@@ -1,8 +1,10 @@
 import multiprocessing
+import os 
+
 
 # Gunicorn configuration
-bind = "0.0.0.0:10000"
-workers = multiprocessing.cpu_count() * 2 + 1
+bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
+workers = 4
 worker_class = "gthread"
 threads = 2
 timeout = 120
@@ -22,3 +24,5 @@ loglevel = "info"
 
 # Process naming
 proc_name = "studentease" 
+
+
