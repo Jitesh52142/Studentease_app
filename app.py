@@ -154,7 +154,6 @@ def admin_required(f):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Routes
 @app.route('/')
 @app.route('/home')
 def home():
@@ -200,8 +199,15 @@ def home():
 
     # Paginate results
     products = query.paginate(page=page, per_page=12)
-    
-    return render_template('home.html', products=products)
+
+    # Remove 'page' from args to avoid conflict in template
+    args = request.args.to_dict()
+    args.pop('page', None)
+
+    # Pass the args without 'page' and the products to the template
+    return render_template('home.html', products=products, request_args=args)
+
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

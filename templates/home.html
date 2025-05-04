@@ -22,65 +22,36 @@
 </div>
 
 <div class="container py-5">
-    <!-- Search and Filter Section -->
-    <div class="search-section mb-5">
-        <div class="row g-3">
-            <div class="col-12">
-                <div class="d-flex gap-3">
-                    <select class="form-select" name="category" id="categoryFilter">
-                        <option value="">All Categories</option>
-                        <option value="electronics">Electronics</option>
-                        <option value="books">Books</option>
-                        <option value="furniture">Furniture</option>
-                        <option value="clothing">Clothing</option>
-                        <option value="other">Other</option>
-                    </select>
-                    <select class="form-select" name="sort" id="sortFilter">
-                        <option value="newest">Newest First</option>
-                        <option value="price_low">Price: Low to High</option>
-                        <option value="price_high">Price: High to Low</option>
-                    </select>
+    <!-- Featured Products Section -->
+    <section class="featured-products mb-5">
+        <h2 class="section-title">Featured Products</h2>
+        <div class="featured-products-scroll">
+            {% if products.items %}
+            <div class="featured-products-list">
+                {% for product in products.items[:5] %} <!-- Limiting to 5 featured products -->
+                <div class="featured-product-card">
+                    <div class="featured-product-image">
+                        <img src="{{ url_for('static', filename='product_images/' + product.image_file) }}" 
+                             alt="{{ product.title }}"
+                             onerror="this.src='{{ url_for('static', filename='product_images/default.jpg') }}'">
+                        {% if product.status == 'sold' %}
+                        <div class="sold-badge">Sold</div>
+                        {% endif %}
+                    </div>
+                    <div class="featured-product-info">
+                        <h5 class="featured-product-title">{{ product.title }}</h5>
+                        <span class="featured-product-price">₹{{ product.price }}</span>
+                        <a href="{{ url_for('product', product_id=product.id) }}" 
+                           class="btn btn-sm btn-outline-primary mt-2">View Details</a>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-        </div>
-    </div>
-
-    <!-- Featured Categories -->
-    <section class="featured-categories mb-5">
-        <h2 class="section-title">Browse Categories</h2>
-        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
-            <div class="col">
-                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='electronics') }}{% else %}{{ url_for('register', next=url_for('home', category='electronics')) }}{% endif %}" class="category-card">
-                    <div class="category-icon">
-                        <i class="bi bi-laptop"></i>
-                    </div>
-                    <h3 class="category-name">Electronics</h3>
-                </a>
+            {% else %}
+            <div class="empty-featured">
+                <p class="lead">No featured products available yet.</p>
             </div>
-            <div class="col">
-                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='books') }}{% else %}{{ url_for('register', next=url_for('home', category='books')) }}{% endif %}" class="category-card">
-                    <div class="category-icon">
-                        <i class="bi bi-book"></i>
-                    </div>
-                    <h3 class="category-name">Books</h3>
-                </a>
-            </div>
-            <div class="col">
-                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='furniture') }}{% else %}{{ url_for('register', next=url_for('home', category='furniture')) }}{% endif %}" class="category-card">
-                    <div class="category-icon">
-                        <i class="bi bi-house-door"></i>
-                    </div>
-                    <h3 class="category-name">Furniture</h3>
-                </a>
-            </div>
-            <div class="col">
-                <a href="{% if current_user.is_authenticated %}{{ url_for('home', category='clothing') }}{% else %}{{ url_for('register', next=url_for('home', category='clothing')) }}{% endif %}" class="category-card">
-                    <div class="category-icon">
-                        <i class="bi bi-bag"></i>
-                    </div>
-                    <h3 class="category-name">Clothing</h3>
-                </a>
-            </div>
+            {% endif %}
         </div>
     </section>
 
@@ -146,14 +117,14 @@
             <ul class="pagination justify-content-center">
                 {% if products.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('home', page=products.prev_num, **request.args) }}">Previous</a>
+                    <a class="page-link" href="{{ url_for('home', page=products.prev_num, **request_args) }}">Previous</a>
                 </li>
                 {% endif %}
 
                 {% for page_num in products.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == products.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('home', page=page_num, **request.args) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('home', page=page_num, **request_args) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled">
@@ -164,7 +135,7 @@
 
                 {% if products.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('home', page=products.next_num, **request.args) }}">Next</a>
+                    <a class="page-link" href="{{ url_for('home', page=products.next_num, **request_args) }}">Next</a>
                 </li>
                 {% endif %}
             </ul>
@@ -196,8 +167,8 @@
 {% block extra_css %}
 <style>
 :root {
-    --primary-color: #4a90e2;
-    --secondary-color: #5c6bc0;
+    --primary-color: #2563eb;
+    --secondary-color:rgb(72, 82, 135);
     --text-dark: #2c3e50;
     --text-muted: #7f8c8d;
     --background-light: #f8f9fa;
@@ -235,54 +206,95 @@
     font-weight: 500;
 }
 
-/* Search Section */
-.search-section {
-    background: white;
+/* Featured Products Section */
+.featured-products {
+    background: linear-gradient(145deg, #ffffff, #e6f0fa);
     padding: 2rem;
     border-radius: 1rem;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
 }
 
-.search-form .form-control {
-    border-radius: 0.5rem 0 0 0.5rem;
-    border: 1px solid rgba(0,0,0,0.1);
-    padding: 0.75rem 1.5rem;
+.featured-products-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-light);
 }
 
-.search-form .btn {
-    border-radius: 0 0.5rem 0.5rem 0;
-    padding: 0.75rem 1.5rem;
+.featured-products-scroll::-webkit-scrollbar {
+    height: 8px;
 }
 
-/* Featured Categories */
-.category-card {
-    display: block;
-    text-decoration: none;
+.featured-products-scroll::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.featured-products-scroll::-webkit-scrollbar-track {
+    background: var(--background-light);
+}
+
+.featured-products-list {
+    display: flex;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+    min-width: max-content;
+}
+
+.featured-product-card {
     background: white;
-    padding: 1.5rem;
     border-radius: 1rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(0,0,0,0.1);
+    overflow: hidden;
+    width: 220px;
+    flex-shrink: 0;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease;
+}
+
+.featured-product-card:hover {
+    transform: scale(1.05);
+}
+
+.featured-product-image {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    background-color: var(--background-light);
+}
+
+.featured-product-image img {
+    width: 100%;
     height: 100%;
+    object-fit: cover;
 }
 
-.category-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+.featured-product-info {
+    padding: 1rem;
+    text-align: center;
 }
 
-.category-icon {
-    font-size: 2rem;
-    color: var(--primary-color);
-    margin-bottom: 1rem;
-}
-
-.category-name {
-    color: var(--text-dark);
+.featured-product-title {
     font-size: 1.1rem;
     font-weight: 600;
-    margin-bottom: 0;
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.featured-product-price {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.empty-featured {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
 }
 
 /* Section Titles */
@@ -420,38 +432,17 @@
         font-size: 2.5rem;
     }
 
-    .search-section .row {
-        text-align: center;
+    .featured-product-card {
+        width: 180px;
     }
 
-    .search-form {
-        margin-bottom: 1rem;
+    .featured-product-image {
+        height: 120px;
     }
 }
 </style>
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const categoryFilter = document.getElementById('categoryFilter');
-    const sortFilter = document.getElementById('sortFilter');
-    
-    function updateFilters() {
-        const searchParams = new URLSearchParams(window.location.search);
-        if (categoryFilter.value) searchParams.set('category', categoryFilter.value);
-        else searchParams.delete('category');
-        if (sortFilter.value) searchParams.set('sort', sortFilter.value);
-        else searchParams.delete('sort');
-        {% if current_user.is_authenticated %}
-        window.location.search = searchParams.toString();
-        {% else %}
-        window.location.href = "{{ url_for('register', next=url_for('home')) }}?" + searchParams.toString();
-        {% endif %}
-    }
-    
-    categoryFilter.addEventListener('change', updateFilters);
-    sortFilter.addEventListener('change', updateFilters);
-});
-</script>
-{% endblock %} 
+<!-- No scripts needed since filter logic is removed -->
+{% endblock %}
