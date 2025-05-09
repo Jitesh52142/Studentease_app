@@ -42,15 +42,7 @@ instance/
 # Environment variables
 .env
 
-# Uploaded files
-static/avatars/*
-static/product_images/*
-static/purchased_products/*
-static/qr_codes/*
-!static/avatars/.gitkeep
-!static/product_images/.gitkeep
-!static/purchased_products/.gitkeep
-!static/qr_codes/.gitkeep
+
 pycache/ *.pyc .env marketplace.db *.sqlite3
 # Logs
 *.log 
