@@ -34,16 +34,21 @@ Before deploying to Vercel, you need to set up the following environment variabl
    - **Output Directory**: Leave empty
 
 ### 3. Configure Environment Variables
-1. In your Vercel project dashboard, go to Settings > Environment Variables
-2. Add the following variables:
-   ```
-   SECRET_KEY=your_very_secure_secret_key_here
-   MONGODB_URI=mongodb+srv://Jitesh001:Jitesh001@twicky.fxotzly.mongodb.net/marketplace?retryWrites=true&w=majority
-   STRIPE_SECRET_KEY=your_stripe_secret_key
-   MAIL_USERNAME=your-email@gmail.com
-   MAIL_PASSWORD=your-gmail-app-password
-   MAIL_DEFAULT_SENDER=your-email@gmail.com
-   ```
+1. In your Vercel project dashboard, go to **Settings** > **Environment Variables**
+2. Click **Add New** for each variable below:
+
+   **Required Variables:**
+   - **Name**: `SECRET_KEY` | **Value**: `your_very_secure_secret_key_here_make_it_long_and_random`
+   - **Name**: `MONGODB_URI` | **Value**: `mongodb+srv://Jitesh001:Jitesh001@twicky.fxotzly.mongodb.net/marketplace?retryWrites=true&w=majority`
+   
+   **Optional Variables (for full functionality):**
+   - **Name**: `STRIPE_SECRET_KEY` | **Value**: `your_stripe_secret_key_here`
+   - **Name**: `MAIL_USERNAME` | **Value**: `your-email@gmail.com`
+   - **Name**: `MAIL_PASSWORD` | **Value**: `your-gmail-app-password`
+   - **Name**: `MAIL_DEFAULT_SENDER` | **Value**: `your-email@gmail.com`
+
+3. **Important**: Make sure to set the environment for **Production**, **Preview**, and **Development**
+4. Click **Save** after adding each variable
 
 ### 4. Deploy
 1. Click "Deploy"

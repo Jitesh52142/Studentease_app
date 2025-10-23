@@ -12,12 +12,4 @@
       "dest": "api/index.py"
     }
   ],
-  "env": {
-    "SECRET_KEY": "@secret_key",
-    "MONGODB_URI": "@mongodb_uri",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "MAIL_USERNAME": "@mail_username",
-    "MAIL_PASSWORD": "@mail_password",
-    "MAIL_DEFAULT_SENDER": "@mail_default_sender"
-  }
 }
