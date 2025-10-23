@@ -13,7 +13,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask_mail import Mail, Message
 from bson import ObjectId
-import shutil
 
 # Load environment variables
 load_dotenv()
@@ -144,7 +143,7 @@ class User(UserMixin):
 
 class Product:
     def __init__(self, product_data):
-        self._id = str(product_data.get('_id', '')) if product_data.get('_id') else ''
+        self.id = str(product_data.get('_id', '')) if product_data.get('_id') else ''
         self.title = product_data['title']
         self.description = product_data['description']
         self.price = product_data['price']
@@ -155,10 +154,6 @@ class Product:
         self.condition = product_data['condition']
         self.status = product_data.get('status', 'available')
         self.user_id = product_data['user_id']
-
-    @property
-    def id(self):
-        return self._id
 
     def save(self):
         product_data = {
@@ -173,11 +168,11 @@ class Product:
             'status': self.status,
             'user_id': self.user_id
         }
-        if hasattr(self, '_id') and self._id:
-            mongo.db.products.update_one({'_id': ObjectId(self._id)}, {'$set': product_data})
+        if hasattr(self, 'id') and self.id:
+            mongo.db.products.update_one({'_id': ObjectId(self.id)}, {'$set': product_data})
         else:
             result = mongo.db.products.insert_one(product_data)
-            self._id = str(result.inserted_id)
+            self.id = str(result.inserted_id)
 
     @staticmethod
     def find_by_id(product_id):
@@ -213,11 +208,11 @@ class Product:
         return [Product(product_data) for product_data in products]
 
     def delete(self):
-        mongo.db.products.delete_one({'_id': ObjectId(self._id)})
+        mongo.db.products.delete_one({'_id': ObjectId(self.id)})
 
 class Order:
     def __init__(self, order_data):
-        self._id = str(order_data.get('_id', '')) if order_data.get('_id') else ''
+        self.id = str(order_data.get('_id', '')) if order_data.get('_id') else ''
         self.buyer_id = order_data['buyer_id']
         self.product_id = order_data['product_id']
         self.date_ordered = order_data.get('date_ordered', datetime.now(UTC))
@@ -229,10 +224,6 @@ class Order:
         self.payment_method = order_data.get('payment_method', 'qr')
         self.payment_proof = order_data.get('payment_proof')
         self.purchased_image = order_data.get('purchased_image')
-
-    @property
-    def id(self):
-        return self._id
 
     def save(self):
         order_data = {
@@ -248,11 +239,11 @@ class Order:
             'payment_proof': self.payment_proof,
             'purchased_image': self.purchased_image
         }
-        if hasattr(self, '_id') and self._id:
-            mongo.db.orders.update_one({'_id': ObjectId(self._id)}, {'$set': order_data})
+        if hasattr(self, 'id') and self.id:
+            mongo.db.orders.update_one({'_id': ObjectId(self.id)}, {'$set': order_data})
         else:
             result = mongo.db.orders.insert_one(order_data)
-            self._id = str(result.inserted_id)
+            self.id = str(result.inserted_id)
 
     @staticmethod
     def find_by_id(order_id):
@@ -276,14 +267,10 @@ class Order:
 
 class PaymentQR:
     def __init__(self, qr_data):
-        self._id = str(qr_data.get('_id', '')) if qr_data.get('_id') else ''
+        self.id = str(qr_data.get('_id', '')) if qr_data.get('_id') else ''
         self.qr_code = qr_data['qr_code']
         self.instructions = qr_data['instructions']
         self.date_updated = qr_data.get('date_updated', datetime.now(UTC))
-
-    @property
-    def id(self):
-        return self._id
 
     def save(self):
         qr_data = {
@@ -291,11 +278,11 @@ class PaymentQR:
             'instructions': self.instructions,
             'date_updated': self.date_updated
         }
-        if hasattr(self, '_id') and self._id:
-            mongo.db.payment_qr.update_one({'_id': ObjectId(self._id)}, {'$set': qr_data})
+        if hasattr(self, 'id') and self.id:
+            mongo.db.payment_qr.update_one({'_id': ObjectId(self.id)}, {'$set': qr_data})
         else:
             result = mongo.db.payment_qr.insert_one(qr_data)
-            self._id = str(result.inserted_id)
+            self.id = str(result.inserted_id)
 
     @staticmethod
     def find_first():
@@ -314,36 +301,6 @@ def admin_required(f):
 def load_user(user_id):
     return User.find_by_id(user_id)
 
-# Template Filters
-@app.template_filter('timeago')
-def timeago_filter(date):
-    if not date:
-        return 'Unknown'
-    if not hasattr(date, 'tzinfo') or not date.tzinfo:
-        date = date.replace(tzinfo=UTC)
-    
-    now = datetime.now(UTC)
-    diff = now - date
-
-    if diff < timedelta(minutes=1):
-        return 'just now'
-    elif diff < timedelta(hours=1):
-        minutes = int(diff.total_seconds() / 60)
-        return f'{minutes} minute{"s" if minutes != 1 else ""} ago'
-    elif diff < timedelta(days=1):
-        hours = int(diff.total_seconds() / 3600)
-        return f'{hours} hour{"s" if hours != 1 else ""} ago'
-    elif diff < timedelta(days=30):
-        days = diff.days
-        return f'{days} day{"s" if days != 1 else ""} ago'
-    elif diff < timedelta(days=365):
-        months = int(diff.days / 30)
-        return f'{months} month{"s" if months != 1 else ""} ago'
-    else:
-        years = int(diff.days / 365)
-        return f'{years} year{"s" if years != 1 else ""} ago'
-
-# Routes
 @app.route('/')
 @app.route('/home')
 def home():
@@ -594,86 +551,6 @@ def product(product_id):
                          product=product,
                          payment_qr=payment_qr)
 
-@app.route('/product/<int:product_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_product(product_id):
-    product = Product.find_by_id(str(product_id))
-    if not product:
-        abort(404)
-    if product.user_id != current_user.id and not current_user.is_admin:
-        abort(403)
-    
-    if request.method == 'POST':
-        product.title = request.form['title']
-        product.description = request.form['description']
-        product.price = float(request.form['price'])
-        product.category = request.form['category']
-        product.condition = request.form['condition']
-        
-        if 'image' in request.files:
-            image = request.files['image']
-            if image.filename:
-                if product.image_file != 'default.jpg':
-                    try:
-                        old_image_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
-                        if os.path.exists(old_image_path):
-                            os.remove(old_image_path)
-                    except Exception as e:
-                        print(f"Error deleting old image: {e}")
-                
-                filename = secure_filename(f"product_{product_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{image.filename}")
-                image.save(os.path.join(app.config['PRODUCTS_FOLDER'], filename))
-                product.image_file = filename
-        
-        try:
-            product.save()
-            flash('Your product has been updated!', 'success')
-            return redirect(url_for('product', product_id=product.id))
-        except Exception as e:
-            print(f"Error updating product: {str(e)}")
-            flash('An error occurred while updating your product.', 'danger')
-    
-    return render_template('edit_product.html', product=product)
-
-@app.route('/product/<int:product_id>/delete', methods=['POST'])
-@login_required
-def delete_product(product_id):
-    product = Product.find_by_id(str(product_id))
-    if not product:
-        abort(404)
-    
-    if product.user_id != current_user.id and not current_user.is_admin:
-        flash('You do not have permission to delete this product.', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    orders = Order.find_by_product_id(str(product_id))
-    if orders:
-        flash('Cannot delete product as it has associated orders.', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    if product.status != 'available':
-        flash('Cannot delete product as it is currently involved in a transaction.', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    try:
-        if product.image_file != 'default.jpg':
-            image_path = os.path.join(app.config['PRODUCTS_FOLDER'], product.image_file)
-            if os.path.exists(image_path):
-                os.remove(image_path)
-        
-        if product.qr_code:
-            qr_path = os.path.join(app.config['QR_CODES_FOLDER'], product.qr_code)
-            if os.path.exists(qr_path):
-                os.remove(qr_path)
-        
-        product.delete()
-        flash('Your product has been deleted successfully!', 'success')
-    except Exception as e:
-        print(f"Error deleting product: {e}")
-        flash('An error occurred while deleting the product.', 'danger')
-    
-    return redirect(url_for('home'))
-
 @app.route('/profile/<username>')
 def profile(username):
     user = User.find_by_username(username)
@@ -751,245 +628,15 @@ def reset_password(token):
     
     return render_template('reset_password.html')
 
-# Admin Routes
-@app.route('/admin')
-@login_required
-@admin_required
-def admin_dashboard():
-    users = User.find_all()
-    products = Product.find_all()
-    orders = Order.find_all()
-    payment_qr = PaymentQR.find_first()
-    return render_template('admin/dashboard.html', 
-                         users=users, 
-                         products=products, 
-                         orders=orders,
-                         payment_qr=payment_qr)
+def send_reset_email(user, token):
+    subject = 'Password Reset Request'
+    body = f'''To reset your password, visit the following link:
+{url_for('reset_password', token=token, _external=True)}
 
-@app.route('/admin/users')
-@login_required
-@admin_required
-def admin_users():
-    users = User.find_all()
-    return render_template('admin/users.html', users=users)
+If you did not make this request then simply ignore this email and no changes will be made.
+'''
+    send_email(user.email, subject, body)
 
-@app.route('/admin/products')
-@login_required
-@admin_required
-def admin_products():
-    products = Product.find_all()
-    return render_template('admin/products.html', products=products)
-
-@app.route('/admin/orders')
-@login_required
-@admin_required
-def admin_orders():
-    orders = Order.find_all()
-    return render_template('admin/orders.html', orders=orders)
-
-@app.route('/admin/payment-qr', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def admin_payment_qr():
-    payment_qr = PaymentQR.find_first()
-    pending_orders = Order.find_all()
-    pending_orders = [o for o in pending_orders if o.payment_status == 'pending']
-    completed_orders = [o for o in pending_orders if o.payment_status == 'completed']
-
-    if request.method == 'POST':
-        if 'qr_code' not in request.files:
-            flash('No QR code uploaded', 'danger')
-            return redirect(url_for('admin_payment_qr'))
-        
-        qr_code = request.files['qr_code']
-        if qr_code.filename == '':
-            flash('No file selected', 'danger')
-            return redirect(url_for('admin_payment_qr'))
-        
-        if qr_code:
-            if payment_qr and payment_qr.qr_code:
-                try:
-                    old_qr_path = os.path.join(app.config['QR_CODES_FOLDER'], payment_qr.qr_code)
-                    if os.path.exists(old_qr_path):
-                        os.remove(old_qr_path)
-                except Exception as e:
-                    print(f"Error deleting old QR code: {e}")
-            
-            filename = secure_filename(f"payment_qr_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{qr_code.filename}")
-            qr_code.save(os.path.join(app.config['QR_CODES_FOLDER'], filename))
-            
-            if not payment_qr:
-                payment_qr = PaymentQR({
-                    'qr_code': filename,
-                    'instructions': request.form['instructions']
-                })
-                payment_qr.save()
-            else:
-                payment_qr.qr_code = filename
-                payment_qr.instructions = request.form['instructions']
-                payment_qr.save()
-            
-            flash('Payment QR code has been updated successfully!', 'success')
-        
-        return redirect(url_for('admin_payment_qr'))
-    
-    return render_template('admin/payment_qr.html', 
-                         payment_qr=payment_qr,
-                         pending_orders=pending_orders,
-                         completed_orders=completed_orders)
-
-# Payment and Order Routes
-@app.route('/submit-payment/<int:product_id>', methods=['POST'])
-@login_required
-def submit_payment(product_id):
-    product = Product.find_by_id(str(product_id))
-    if not product:
-        abort(404)
-    
-    if 'payment_screenshot' not in request.files:
-        flash('No payment proof uploaded', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    screenshot = request.files['payment_screenshot']
-    if screenshot.filename == '':
-        flash('No file selected', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    if screenshot:
-        try:
-            filename = secure_filename(f"payment_proof_{product_id}_{current_user.id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{screenshot.filename}")
-            proof_path = os.path.join(app.config['PAYMENT_PROOFS_FOLDER'], filename)
-            
-            os.makedirs(os.path.dirname(proof_path), exist_ok=True)
-            screenshot.save(proof_path)
-            
-            order = Order({
-                'buyer_id': current_user.id,
-                'product_id': str(product_id),
-                'status': 'pending',
-                'payment_method': 'qr',
-                'payment_status': 'pending',
-                'payment_proof': filename
-            })
-            
-            product.status = 'pending'
-            product.save()
-            order.save()
-
-            try:
-                admin_subject = 'New Payment Verification Required'
-                admin_body = f"""
-New payment proof submitted:
-
-Order ID: #{order.id}
-Product: {product.title}
-Price: ${product.price}
-Buyer: {current_user.username}
-Seller: {User.find_by_id(product.user_id).username if User.find_by_id(product.user_id) else 'Unknown'}
-
-Please verify the payment in the admin dashboard.
-"""
-                send_email('jiteshbawaskar05@gmail.com', admin_subject, admin_body)
-
-                buyer_subject = 'Payment Proof Submitted'
-                buyer_body = f"""
-Dear {current_user.username},
-
-Your payment proof has been submitted for:
-
-Order ID: #{order.id}
-Product: {product.title}
-Price: ${product.price}
-
-We will notify you once your payment is verified.
-
-Thank you for your purchase!
-"""
-                send_email(current_user.email, buyer_subject, buyer_body)
-
-            except Exception as e:
-                print(f"Error sending emails: {str(e)}")
-            
-            flash('Your payment proof has been submitted and is pending verification.', 'success')
-            return redirect(url_for('profile', username=current_user.username))
-            
-        except Exception as e:
-            print(f"Error processing payment: {str(e)}")
-            flash('Error processing payment. Please try again.', 'danger')
-            return redirect(url_for('product', product_id=product_id))
-    
-    flash('Error uploading payment proof. Please try again.', 'danger')
-    return redirect(url_for('product', product_id=product_id))
-
-@app.route('/place-cod-order/<int:product_id>', methods=['POST'])
-@login_required
-def place_cod_order(product_id):
-    product = Product.find_by_id(str(product_id))
-    if not product:
-        abort(404)
-    
-    if product.status != 'available':
-        flash('This product is no longer available.', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-    
-    try:
-        order = Order({
-            'buyer_id': current_user.id,
-            'product_id': str(product_id),
-            'status': 'pending',
-            'payment_method': 'cod',
-            'payment_status': 'pending'
-        })
-        
-        product.status = 'pending'
-        product.save()
-        order.save()
-        
-        try:
-            seller = User.find_by_id(product.user_id)
-            if seller:
-                seller_subject = 'New Cash on Delivery Order'
-                seller_body = f"""
-A new Cash on Delivery order has been placed:
-
-Order ID: #{order.id}
-Product: {product.title}
-Price: ${product.price}
-Buyer: {current_user.username}
-
-The buyer will pay upon delivery.
-"""
-                send_email(seller.email, seller_subject, seller_body)
-
-            buyer_subject = 'Order Confirmation - Cash on Delivery'
-            buyer_body = f"""
-Dear {current_user.username},
-
-Your Cash on Delivery order has been placed:
-
-Order ID: #{order.id}
-Product: {product.title}
-Price: ${product.price}
-Seller: {seller.username if seller else 'Unknown'}
-
-You will need to pay when the product is delivered.
-
-Thank you for your order!
-"""
-            send_email(current_user.email, buyer_subject, buyer_body)
-
-        except Exception as e:
-            print(f"Error sending emails: {str(e)}")
-
-        flash('Your Cash on Delivery order has been placed successfully!', 'success')
-        return redirect(url_for('profile', username=current_user.username))
-
-    except Exception as e:
-        print(f"Error placing order: {str(e)}")
-        flash('Error placing order. Please try again.', 'danger')
-        return redirect(url_for('product', product_id=product_id))
-
-# Email functions
 def send_email(to, subject, body):
     try:
         msg = Message(
@@ -1021,20 +668,37 @@ The StudentEase Team
 '''
     send_email(user.email, subject, body)
 
-def send_reset_email(user, token):
-    subject = 'Password Reset Request'
-    body = f'''To reset your password, visit the following link:
-{url_for('reset_password', token=token, _external=True)}
-
-If you did not make this request then simply ignore this email and no changes will be made.
-'''
-    send_email(user.email, subject, body)
-
 @app.before_request
 def before_request():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.now(UTC)
         current_user.save()
+
+@app.template_filter('timeago')
+def timeago_filter(date):
+    if not date.tzinfo:
+        date = date.replace(tzinfo=UTC)
+    
+    now = datetime.now(UTC)
+    diff = now - date
+
+    if diff < timedelta(minutes=1):
+        return 'just now'
+    elif diff < timedelta(hours=1):
+        minutes = int(diff.total_seconds() / 60)
+        return f'{minutes} minute{"s" if minutes != 1 else ""} ago'
+    elif diff < timedelta(days=1):
+        hours = int(diff.total_seconds() / 3600)
+        return f'{hours} hour{"s" if hours != 1 else ""} ago'
+    elif diff < timedelta(days=30):
+        days = diff.days
+        return f'{days} day{"s" if days != 1 else ""} ago'
+    elif diff < timedelta(days=365):
+        months = int(diff.days / 30)
+        return f'{months} month{"s" if months != 1 else ""} ago'
+    else:
+        years = int(diff.days / 365)
+        return f'{years} year{"s" if years != 1 else ""} ago'
 
 # Initialize admin user if not exists
 def init_admin():
@@ -1057,16 +721,12 @@ def init_admin():
 
 if __name__ == '__main__':
     # Create indexes for better performance
-    try:
-        mongo.db.users.create_index("email", unique=True)
-        mongo.db.users.create_index("username", unique=True)
-        mongo.db.products.create_index("user_id")
-        mongo.db.products.create_index("status")
-        mongo.db.orders.create_index("buyer_id")
-        mongo.db.orders.create_index("product_id")
-        print("Database indexes created successfully!")
-    except Exception as e:
-        print(f"Error creating indexes: {e}")
+    mongo.db.users.create_index("email", unique=True)
+    mongo.db.users.create_index("username", unique=True)
+    mongo.db.products.create_index("user_id")
+    mongo.db.products.create_index("status")
+    mongo.db.orders.create_index("buyer_id")
+    mongo.db.orders.create_index("product_id")
     
     # Initialize admin user
     init_admin()
